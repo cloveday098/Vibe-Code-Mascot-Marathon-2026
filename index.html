@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mascot Mayhem: The Rivalry Run</title>
+<style>
+  :root { --orange: #f08a1c; --blue: #1f3fbf; --gold: #ffc72c; --green: #0d6b3d; --ink: #10131f; --panel: rgba(12, 16, 32, 0.86); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif; color: #fff; user-select: none; }
+  canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s; }
+  #hud.show { opacity: 1; }
+  #hud.dim { opacity: .25; }
+  .tl, .tr, .tc { position: absolute; top: 12px; text-shadow: 0 2px 0 #000, 0 0 6px #000; }
+  .tl { left: 16px; }
+  .tr { right: 16px; text-align: right; }
+  .tc { left: 50%; transform: translateX(-50%); text-align: center; width: min(520px, 60vw); }
+  #hearts .heart { font-size: 30px; color: #44263a; margin-right: 2px; transition: transform .2s; display: inline-block; }
+  #hearts .heart.full { color: #ff3355; }
+  #lives { font-size: 18px; font-weight: bold; margin-top: 2px; }
+  #score { font: bold 26px/1 monospace; color: var(--gold); }
+  #coins, #timer { font-size: 15px; }
+  #levelname { font-weight: 900; letter-spacing: 2px; font-size: 15px; color: #ffe6a8; }
+  .bar { position: relative; height: 12px; margin-top: 6px; background: rgba(0,0,0,.55); border: 2px solid #fff; border-radius: 8px; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--orange), var(--gold)); border-radius: 6px; }
+  .bar b { position: absolute; top: -12px; transform: translateX(-50%); font-size: 20px; }
+  .bar em { position: absolute; right: -14px; top: -12px; font-size: 20px; font-style: normal; }
+  .bar.boss { height: 18px; border-color: #ffd21f; }
+  .bar.boss i { background: linear-gradient(90deg, #0d6b3d, #3ad16b); transition: width .15s; }
+  .bar.boss s { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 3px; background: #fff; }
+  .bossname { font-weight: 900; font-size: 18px; color: #ffd21f; letter-spacing: 3px; margin-top: 4px; }
+  .rage { color: #ff4040; animation: pulse .5s infinite alternate; }
+  #flood { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); font-weight: bold; font-size: 18px; text-shadow: 0 2px 0 #000; }
+  #flood .danger { color: #ff5a5a; animation: pulse .3s infinite alternate; }
+
+  #hotbar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: auto; }
+  .slot { position: relative; width: 84px; height: 84px; background: var(--panel); border: 3px solid #5a6488; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; transition: transform .12s, border-color .12s; }
+  .slot .key { position: absolute; top: 3px; left: 6px; font: bold 14px monospace; color: #ffe6a8; }
+  .slot .icon { width: 40px; height: 40px; }
+  .slot .icon svg { width: 100%; height: 100%; }
+  .slot .name { font-size: 11px; font-weight: bold; margin-top: 2px; white-space: nowrap; }
+  .slot .meter { position: absolute; inset: 0; pointer-events: none; }
+  .slot .meter i { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.55); }
+  .slot .meter i.heat { background: linear-gradient(0deg, rgba(255,40,60,.55), rgba(255,160,40,.35)); }
+  .slot .lock { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-size: 22px; background: rgba(0,0,0,.6); }
+  .slot.locked { border-color: #333a52; }
+  .slot.locked .icon, .slot.locked .name { filter: grayscale(1) brightness(.45); }
+  .slot.locked .lock { display: flex; }
+  .slot.selected { border-color: var(--gold); transform: translateY(-8px) scale(1.06); box-shadow: 0 0 18px rgba(255,199,44,.6); }
+  .slot.hot { border-color: #ff3344; }
+  .slot.flash { animation: flash .6s; }
+  .pips { position: absolute; top: 4px; right: 5px; display: flex; flex-direction: column; gap: 2px; }
+  .pips span { width: 9px; height: 9px; border-radius: 50%; background: #333; border: 1px solid #6cff9f; }
+  .pips span.on { background: #6cff9f; box-shadow: 0 0 6px #6cff9f; }
+  #ctx { position: absolute; bottom: 112px; left: 50%; transform: translateX(-50%); font-size: 14px; background: rgba(0,0,0,.45); padding: 4px 12px; border-radius: 10px; white-space: nowrap; }
+  #controls { position: absolute; left: 14px; bottom: 14px; font-size: 12px; line-height: 1.55; background: rgba(0,0,0,.4); padding: 8px 10px; border-radius: 10px; color: #dde; }
+  #controls b { color: #ffe6a8; }
+  #toast { position: absolute; top: 120px; left: 50%; transform: translate(-50%, -10px); background: var(--panel); border: 2px solid var(--gold); border-radius: 12px; padding: 10px 18px; font-size: 17px; text-align: center; opacity: 0; transition: opacity .2s, transform .2s; max-width: 80vw; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast.power { border-color: #b48cff; box-shadow: 0 0 30px rgba(155,92,255,.6); }
+  #toast.warn { border-color: #ff5a5a; }
+  #toast.win { border-color: #ffd21f; }
+  #toast.reload { border-color: #6cff9f; color: #c8ffd9; }
+  #toast .big { font-size: 26px; font-weight: 900; color: var(--gold); margin-bottom: 4px; letter-spacing: 1px; }
+  #damage { position: absolute; inset: 0; box-shadow: inset 0 0 120px rgba(255,0,40,.0); }
+  #damage.on { animation: dmg .45s; }
+  #deathmsg { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; text-shadow: 0 3px 0 #000; }
+  #deathmsg.show { display: block; }
+  #deathmsg h2 { font-size: 40px; color: #ff6a6a; margin: 0; }
+
+  /* ---------- overlays ---------- */
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(10,14,30,.35), rgba(5,6,14,.82)); z-index: 5; }
+  .overlay.show { display: flex; }
+  #card { background: transparent; pointer-events: none; }
+  #card .btns { pointer-events: auto; }
+  .panel { text-align: center; max-width: 760px; padding: 28px 34px; background: var(--panel); border: 3px solid var(--gold); border-radius: 20px; box-shadow: 0 12px 60px rgba(0,0,0,.6); }
+  .panel h1 { font-size: 52px; margin: 6px 0 10px; letter-spacing: 2px; color: #fff; text-shadow: 0 4px 0 var(--orange); }
+  .panel h1.bad { text-shadow: 0 4px 0 #8a1020; color: #ff8080; }
+  .panel h1.gold { color: var(--gold); text-shadow: 0 4px 0 #8a5a00; font-size: 66px; }
+  .panel p { font-size: 17px; line-height: 1.5; color: #e6e9f5; margin: 8px 0; }
+  .tag { display: inline-block; padding: 4px 12px; border-radius: 30px; background: var(--orange); color: #111; font-weight: 900; letter-spacing: 2px; font-size: 13px; }
+  .stats b { color: var(--gold); }
+  .btns { margin-top: 16px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  button { font: bold 17px inherit; font-family: inherit; padding: 11px 20px; border-radius: 12px; border: 3px solid #fff; background: #2a3150; color: #fff; cursor: pointer; transition: transform .1s; }
+  button:hover { transform: translateY(-2px); }
+  button.primary { background: var(--orange); border-color: var(--gold); color: #111; }
+  .title-logo { font-size: 20px; letter-spacing: 6px; color: var(--gold); font-weight: 900; }
+  .title-main { font-size: 64px; font-weight: 900; line-height: .95; margin: 4px 0; text-shadow: 0 5px 0 var(--orange), 0 10px 0 var(--blue); }
+  .vs { font-size: 18px; margin: 14px 0 6px; }
+  .vs .t { color: var(--orange); font-weight: 900; }
+  .vs .d { color: #3ad16b; font-weight: 900; }
+  .levels { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+  .levels button { font-size: 14px; padding: 8px 12px; }
+  .keys { display: grid; grid-template-columns: auto auto; gap: 4px 18px; text-align: left; font-size: 14px; margin: 12px auto 0; width: fit-content; }
+  .keys kbd { background: #fff; color: #111; border-radius: 5px; padding: 1px 6px; font: bold 12px monospace; box-shadow: 0 2px 0 #888; margin-right: 2px; }
+  label.easy { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; margin-top: 10px; cursor: pointer; }
+  #help { position: fixed; right: 16px; top: 120px; z-index: 4; display: none; background: var(--panel); border: 2px solid var(--gold); border-radius: 14px; padding: 12px 16px; pointer-events: none; }
+  #help.show { display: block; }
+  #testout { display: none; position: fixed; top: 60px; right: 10px; z-index: 9; background: rgba(0,0,0,.85); color: #8f8; font: 12px monospace; padding: 10px; white-space: pre; border: 1px solid #8f8; }
+
+  @keyframes pulse { from { opacity: 1; } to { opacity: .45; } }
+  @keyframes flash { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.9); } 100% { box-shadow: 0 0 0 18px rgba(255,255,255,0); } }
+  @keyframes dmg { 0% { box-shadow: inset 0 0 160px rgba(255,0,40,.75); } 100% { box-shadow: inset 0 0 160px rgba(255,0,40,0); } }
+  @media (prefers-reduced-motion: reduce) { .slot, #toast { transition: none; } }
+  @media (max-width: 760px) { .slot { width: 60px; height: 64px; } .slot .name { font-size: 9px; } .title-main { font-size: 40px; } #controls { display: none; } .panel h1 { font-size: 34px; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="damage"></div>
+  <div class="tl"><div id="hearts"></div><div id="lives"></div></div>
+  <div class="tc"><div id="levelname"></div><div id="progress"></div></div>
+  <div class="tr"><div id="score"></div><div id="coins"></div><div id="timer"></div></div>
+  <div id="flood"></div>
+  <div id="toast"></div>
+  <div id="deathmsg"></div>
+  <div id="ctx"></div>
+  <div id="hotbar"></div>
+  <div id="controls">
+    <b>A/D ←→</b> move · <b>Space/W</b> jump<br>
+    <b>J / Left-click</b> BOX (punch combo)<br>
+    <b>1–5</b> / wheel / Q,E select loadout<br>
+    <b>K / Right-click</b> use selected item<br>
+    <b>C</b> camera · <b>P</b> pause · <b>M</b> mute · <b>H</b> help
+  </div>
+</div>
+
+<div id="help">
+  <b>Tips</b><br>
+  • Stomp ducks by landing on them<br>
+  • 3rd punch in a combo is an uppercut<br>
+  • Ray Gun: 4 shots, any KO reloads it<br>
+  • Sword / Force / punches knock eggs back<br>
+  • Charge Mack into a wall to stun him (x2 dmg)
+</div>
+
+<div class="overlay show" id="title"><div class="panel">
+  <div class="title-logo">MASCOT MAYHEM</div>
+  <div class="title-main">THE RIVALRY RUN</div>
+  <p class="vs"><span class="t">STRIPES the Tiger</span> vs <span class="d">MALLARD MACK the Duck</span></p>
+  <p>The rival Ducks stole the Spirit Trophy. Box, blast and climb across a wildly reimagined campus to win it back.</p>
+  <div class="keys">
+    <span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></span><span>Run</span>
+    <span><kbd>Space</kbd> / <kbd>W</kbd></span><span>Jump (hold for higher)</span>
+    <span><kbd>J</kbd> / Left-click</span><span>Box — punch combo</span>
+    <span><kbd>1</kbd>–<kbd>5</kbd></span><span>Loadout: Ray Gun · Sword · Fireblast · Laser Eyes · The Force</span>
+    <span><kbd>K</kbd> / Right-click</span><span>Use selected item</span>
+    <span><kbd>C</kbd> <kbd>P</kbd> <kbd>M</kbd></span><span>Camera · Pause · Mute</span>
+  </div>
+  <div class="btns"><button class="primary" data-act="start">▶ START THE RUN (Enter)</button></div>
+  <label class="easy"><input type="checkbox" id="easy"> Easy mode (9 lives, gentler hits)</label>
+  <p style="margin-top:10px;font-size:14px;color:#aab">Level select (for judges &amp; testers):</p>
+  <div class="levels">
+    <button data-act="level" data-level="0">1 · Campus Dash</button>
+    <button data-act="level" data-level="1">2 · Stormy Stadium</button>
+    <button data-act="level" data-level="2">3 · The Gauntlet</button>
+    <button data-act="level" data-level="3">4 · Rivalry Showdown</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="card"><div class="panel"></div></div>
+<div class="overlay" id="pause"><div class="panel">
+  <h1>PAUSED</h1>
+  <div class="btns"><button class="primary" data-act="resume">Resume (P)</button><button data-act="retry">Restart Level</button><button data-act="menu">Main Menu</button></div>
+</div></div>
+<div class="overlay" id="gameover"><div class="panel"></div></div>
+<div class="overlay" id="victory"><div class="panel"></div></div>
+<pre id="testout"></pre>
+
+<script type="importmap">
+  { "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
