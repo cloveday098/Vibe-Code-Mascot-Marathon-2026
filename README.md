@@ -20,7 +20,7 @@ Core requirements
 ## Chance's Prompt:
 Given the below description, create 
 
-The Maryville College Scotsman is riding a tiger. He can jump, block attacks, and has tow attacks: sword thrust and bagpipe blunder. Make a platformer game in the style of older Nintendo games with the Scotsman riding the tiger as the playable character. The Scotsman (Scot) and his tiger (Aris) must navigate through four levels across the Maryville College campus to 
+**Mechanics:** The Maryville College Scotsman is riding a tiger. He can jump, block attacks, and has tow attacks: sword thrust and bagpipe blunder. Make a platformer game in the style of older Nintendo games with the Scotsman riding the tiger as the playable character. The Scotsman (Scot) and his tiger (Aris) must navigate through four levels across the Maryville College campus to Gatlinburg.
 
 
 Level 1: Maryville College
