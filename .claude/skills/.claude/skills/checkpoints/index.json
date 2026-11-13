@@ -1,0 +1,32 @@
+{
+  "total_checkpoints": 3,
+  "sessions": {
+    "session_1763228159": [
+      {
+        "checkpoint_id": "checkpoint_001_20251115_113559",
+        "filename": "checkpoint_001_20251115_113559.md",
+        "timestamp": "2025-11-15 11:35:59"
+      }
+    ],
+    "session_1763228283": [
+      {
+        "checkpoint_id": "checkpoint_002_20251115_113803",
+        "filename": "checkpoint_002_20251115_113803.md",
+        "timestamp": "2025-11-15 11:38:03"
+      }
+    ],
+    "session_1763228340": [
+      {
+        "checkpoint_id": "checkpoint_003_20251115_113900",
+        "filename": "checkpoint_003_20251115_113900.md",
+        "timestamp": "2025-11-15 11:39:00"
+      }
+    ]
+  },
+  "last_checkpoint": {
+    "id": "checkpoint_003_20251115_113900",
+    "filename": "checkpoint_003_20251115_113900.md",
+    "timestamp": "2025-11-15 11:39:00",
+    "session_id": "session_1763228340"
+  }
+}
