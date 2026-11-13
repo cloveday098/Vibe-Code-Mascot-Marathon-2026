@@ -13,8 +13,8 @@ const PW = 0.38, PH = 1.9, TIGER_SCALE = 0.85;
 const MAX_HP = 5, GUN_MAX = 4, LASER_MAX = 2.2;
 const SLOTS = [
   { id: 'gun', name: 'Ray Gun', hint: '4 shots · KO reloads', from: 'Start' },
-  { id: 'sword', name: 'Sword', hint: 'Big slash · blocks eggs', from: 'Level 1 (Library roof)' },
-  { id: 'fireblast', name: 'Fireblast', hint: 'Exploding fireball', from: 'Level 2 (Bleachers)' },
+  { id: 'sword', name: 'Sword', hint: 'Big slash · blocks eggs', from: 'Level 1 (above the Covenant Stone)' },
+  { id: 'fireblast', name: 'Fireblast', hint: 'Exploding fireball', from: 'Level 2 (billboard catwalk)' },
   { id: 'laser', name: 'Laser Eyes', hint: 'HOLD to beam · overheats', from: 'Level 3' },
   { id: 'force', name: 'The Force', hint: 'Push wave · reflects eggs', from: 'Level 3' },
 ];
@@ -133,6 +133,9 @@ const beamMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1, 8).rot
 beamMesh.visible = false;
 scene.add(beamMesh);
 const beam2 = beamMesh.clone(); scene.add(beam2);
+const sweepBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1, 10), new THREE.MeshBasicMaterial({ color: 0xff2244, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+sweepBeam.visible = false;
+scene.add(sweepBeam);
 const forceRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.12, 8, 40), new THREE.MeshBasicMaterial({ color: 0xb48cff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
 forceRing.rotation.y = Math.PI / 2;
 forceRing.visible = false;
@@ -166,7 +169,7 @@ const KEYMAP = {
   Space: 'jump', KeyW: 'jump', ArrowUp: 'jump',
   KeyJ: 'punch', KeyZ: 'punch', KeyK: 'use', KeyX: 'use', ShiftLeft: 'use', ShiftRight: 'use',
   Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', Digit4: 'slot4', Digit5: 'slot5',
-  KeyQ: 'prev', KeyE: 'next', KeyP: 'pause', Escape: 'pause', KeyM: 'mute', KeyC: 'cam', KeyH: 'help', Enter: 'confirm',
+  KeyQ: 'next', KeyE: 'gun', KeyP: 'pause', Escape: 'pause', KeyM: 'mute', KeyC: 'cam', KeyH: 'help', Enter: 'confirm',
 };
 window.addEventListener('keydown', (e) => {
   const a = KEYMAP[e.code];
@@ -223,7 +226,7 @@ function updateHUD() {
     setHTML('levelname', `LEVEL ${L.id} · ${L.name.toUpperCase()}`);
     if (S.boss) {
       const b = S.boss;
-      setHTML('progress', `<div class="bossname">MALLARD MACK ${b.phase === 2 ? '<span class="rage">FURIOUS</span>' : ''}</div><div class="bar boss"><i style="width:${Math.max(0, (b.hp / b.maxHp) * 100)}%"></i><s></s></div>`);
+      setHTML('progress', `<div class="bossname">THE SINGULARITY ${b.phase === 2 ? '<span class="rage">SELF-IMPROVING</span>' : ''}</div><div class="bar boss"><i style="width:${Math.max(0, (b.hp / b.maxHp) * 100)}%"></i><s></s></div>`);
     } else {
       const pct = Math.max(0, Math.min(100, ((P.x - L.start.x) / (L.finishX - L.start.x)) * 100));
       setHTML('progress', `<div class="bar"><i style="width:${pct.toFixed(0)}%"></i><b style="left:${pct.toFixed(0)}%">🐯</b><em>🏁</em></div>`);
@@ -271,7 +274,8 @@ function showOverlay(id, html) {
 // ---------------------------------------------------------------- level build
 const STYLES = {
   grass: [0x5cc24f, 0x7a5232], turf: [0x2f8f33, 0x3b3b3b], stone: [0xc9c2b2, 0x8f887a], wood: [0xc4924f, 0x8a5a2b],
-  roof: [0x7a3e2c, 0xd9cfb8], tray: [0xd0d6e0, 0x8a96a8], bleacher: [0xb8bcc8, 0x5a6070], metal: [0x9fd0ff, 0x50607a], brick: [0xc0583a, 0x8a3a28],
+  roof: [0x7a3e2c, 0xd9cfb8], tray: [0xd0d6e0, 0x8a96a8], bleacher: [0xb8bcc8, 0x5a6070], metal: [0x9fd0ff, 0x50607a], brick: [0xa8483a, 0x8a3428],
+  road: [0x2c2d33, 0x6a6258], carpet: [0x8a1c2b, 0x3b2418], woodfloor: [0xa8743c, 0x5a3a1c], marble: [0xe8e2d6, 0xa8a090], tech: [0x1c2a3c, 0x0c1018],
 };
 function disposeTree(o) {
   o.traverse((c) => { if (c.geometry && c.geometry !== boltGeo && c.geometry !== fireGeo && c.geometry !== eggGeo) c.geometry.dispose(); });
@@ -290,6 +294,19 @@ function buildSolidMesh(s) {
   body.receiveShadow = cap.receiveShadow = true;
   body.castShadow = cap.castShadow = true;
   g.add(body, cap);
+  if (s.style === 'road') {
+    for (let x = s.x0 + 1; x < s.x1 - 1; x += 4) {
+      const dash = new THREE.Mesh(new THREE.BoxGeometry(2, 0.02, 0.18), M.mat(0xffd21f));
+      dash.position.set(x - (s.x0 + s.x1) / 2, 0.01, 0.9);
+      g.add(dash);
+    }
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, 0.12), M.mat(0xffffff));
+    edge.position.set(0, 0.01, -1.6); g.add(edge);
+  }
+  if (s.style === 'tech') {
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, 0.12), new THREE.MeshBasicMaterial({ color: 0x3affd0 }));
+    glow.position.set(0, 0.02, depth / 2 - 0.1); g.add(glow);
+  }
   if (s.style === 'bleacher' && h > 1) {
     for (let y = s.bottom + 0.6; y < s.top - 0.2; y += 1.2) {
       const seat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.2), M.mat(0x2a54c8));
@@ -336,8 +353,10 @@ function loadLevel(index, { fresh = true } = {}) {
   S.root = new THREE.Group();
   scene.add(S.root);
   S.solids = []; S.enemies = []; S.pickups = []; S.coins = []; S.checkpoints = []; S.projectiles = []; S.eggs = []; S.strikes = []; S.waves = [];
+  S.cars = []; S.drops = []; S.ambient = [];
   S.boss = null; S.trophy = null; S.flood = null; S.crowd = null;
-  S.levelTime = 0; S.lightningT = 2.5;
+  S.levelTime = 0; S.lightningT = 2.5; S.carT = L.cars ? L.cars.grace : 0; S.dropT = 2;
+  sweepBeam.visible = false;
 
   scene.background = new THREE.Color(L.sky);
   scene.fog = new THREE.Fog(L.fog[0], L.fog[1], L.fog[2]);
@@ -351,12 +370,27 @@ function loadLevel(index, { fresh = true } = {}) {
   back.position.set(100, -0.02, -62);
   back.receiveShadow = true;
   S.root.add(back);
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < (L.interior ? 0 : 12); i++) {
     const hill = new THREE.Mesh(new THREE.SphereGeometry(18 + (i % 3) * 6, 16, 10), M.mat(new THREE.Color(L.ground).multiplyScalar(0.75).getHex(), { flatShading: true }));
     hill.position.set(-30 + i * 22, -8, -70 - (i % 2) * 10);
     S.root.add(hill);
   }
-  if (L.id === 2 || L.id === 4) addCrowd(S.root, L.id === 2 ? -10 : -26, L.id === 2 ? 200 : 26);
+  if (L.crowd) addCrowd(S.root, -26, 26);
+  if (L.ambientTraffic) {
+    // background traffic in the far lanes (decor only)
+    for (let i = 0; i < 10; i++) {
+      const dir = i % 2 ? 1 : -1;
+      const kind = i % 4 === 0 ? 'truck' : 'sedan';
+      const car = M.buildCar(kind, [0x2a6fd1, 0xe8e8e8, 0x3a3a3a, 0xf2c12e, 0x2f8a4a][i % 5]);
+      car.root.position.set(i * 24 - 10, 0, dir > 0 ? -6.5 : -4.2);
+      car.root.rotation.y = dir > 0 ? Math.PI : 0;
+      S.root.add(car.root);
+      S.ambient.push({ car, vx: dir * (9 + (i % 3) * 3) });
+    }
+    const lane = new THREE.Mesh(new THREE.BoxGeometry(600, 0.1, 6), M.mat(0x34353b));
+    lane.position.set(100, -0.04, -5.4); lane.receiveShadow = true;
+    S.root.add(lane);
+  }
 
   for (const def of L.platforms) {
     const s = { ...def, baseX0: def.x0, baseX1: def.x1, baseTop: def.top, baseBottom: def.bottom, dx: 0, dy: 0, phase: Math.random() * 6 };
@@ -398,7 +432,11 @@ function loadLevel(index, { fresh = true } = {}) {
     S.root.add(m);
     S.checkpoints.push({ x: c.x, y, mesh: m, on: false });
   }
-  if (L.finishX) {
+  if (L.shaft) {
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(L.shaft.x1 - L.shaft.x0 + 0.4, 30, 6), new THREE.MeshBasicMaterial({ color: 0x020202 }));
+    shaft.position.set((L.shaft.x0 + L.shaft.x1) / 2, -15.2, 0);
+    S.root.add(shaft);
+  } else if (L.finishX) {
     const f = M.buildFlag();
     const fy = groundAt(L.finishX, 60);
     f.position.set(L.finishX, fy, -0.3);
@@ -454,6 +492,16 @@ function spawnEnemy(type, x, y, range) {
     model.add(ball);
     rig = { root: model, ball };
     hw = 0.7; h = 1.0; hp = 3;
+  } else if (type === 'suit' || type === 'acm') {
+    rig = type === 'suit'
+      ? M.buildPerson({ suit: [0x23252e, 0x2b3550, 0x3a3a3a][Math.floor(Math.random() * 3)], tie: [0xc0182a, 0x1f3fbf, 0x2f8a4a][Math.floor(Math.random() * 3)], hair: [0x3a2a1a, 0x111111, 0x8a6a3a, 0xbbbbbb][Math.floor(Math.random() * 4)], skin: [0xe0ac85, 0xc68a5e, 0x8d5a3a, 0xf1c8a5][Math.floor(Math.random() * 4)], briefcase: Math.random() < 0.5 })
+      : M.buildPerson({ suit: [0x6a7a8a, 0x3a5a8a, 0x8a4a2a][Math.floor(Math.random() * 3)], shirt: 0xf5e6c8, tie: 0x1f6fd1, hair: [0x5a3a1a, 0x222222, 0x999999][Math.floor(Math.random() * 3)], skin: [0xe0ac85, 0xc68a5e, 0x8d5a3a, 0xf1c8a5][Math.floor(Math.random() * 4)], badge: true });
+    model = rig.root;
+    hw = 0.4; h = 1.5; hp = type === 'acm' ? 3 : 2;
+  } else if (type === 'bot') {
+    rig = M.buildBot(M.AI_BRANDS[Math.floor(Math.random() * M.AI_BRANDS.length)].fg === '#ffffff' ? 0x3affd0 : 0xff7ad9);
+    model = rig.root;
+    hw = 0.42; h = 1.3; hp = 3;
   } else {
     rig = M.buildDuck({ scale: type === 'flapper' ? 0.6 : 0.75 });
     model = rig.root;
@@ -481,15 +529,15 @@ function spawnPickup(kind, x, y, respawn) {
 }
 
 function spawnBoss(x, y) {
-  const rig = M.buildDuck({ scale: 2.0, boss: true });
+  const rig = M.buildBrain();
   S.root.add(rig.root);
-  S.boss = { x, y, vx: 0, vy: 0, hw: 1.1, h: 3.4, hp: 40, maxHp: 40, rig, state: 'intro', t: 0, facing: -1, stun: 0, phase: 1, flash: 0, lastAttack: '', onGround: true, attackCount: 0 };
+  S.boss = { x, y: 13, homeY: y, vx: 0, vy: 0, hw: 2.5, h: 3.4, hp: 60, maxHp: 60, rig, state: 'intro', t: 0, facing: -1, stun: 0, phase: 1, flash: 0, invuln: 0, lastAttack: '', attackCount: 0, brand: null, hoverT: 0 };
   const trophy = M.buildTrophy();
-  trophy.position.set(0, 10, -7);
+  trophy.position.set(0, 10.5, -7);
   trophy.scale.setScalar(1.6);
   S.root.add(trophy);
-  const cage = new THREE.Mesh(new THREE.SphereGeometry(2.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0x1dff7a, transparent: true, opacity: 0.18, wireframe: true }));
-  cage.position.set(0, 11.5, -7);
+  const cage = new THREE.Mesh(new THREE.SphereGeometry(2.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0x3affd0, transparent: true, opacity: 0.25, wireframe: true }));
+  cage.position.set(0, 12, -7);
   S.root.add(cage);
   const tl = new THREE.PointLight(0xffcc33, 40, 14);
   tl.position.set(0, 12, -4);
@@ -548,6 +596,10 @@ function hitBox(x0, x1, y0, y1, dmg, opts = {}) {
   if (b && b.hp > 0 && b.state !== 'intro' && b.state !== 'defeat') {
     if (x1 > b.x - b.hw && x0 < b.x + b.hw && y1 > b.y && y0 < b.y + b.h) { if (!probe) damageBoss(dmg, opts); hit++; }
   }
+  for (const c of S.cars) {
+    if (c.dead) continue;
+    if (x1 > c.solid.x0 && x0 < c.solid.x1 && y1 > c.solid.bottom && y0 < c.solid.top) { if (!probe) damageCar(c, dmg, (opts.kx || 0) * 0.5); hit++; }
+  }
   if (probe) return hit;
   for (const s of [...S.solids]) {
     if (!s.crate) continue;
@@ -577,11 +629,16 @@ function killEnemy(e) {
   S.score += e.type === 'football' ? 150 : 100;
   burst(e.x, e.y + e.h * 0.5, 0, 26, e.type === 'football' ? 0xa0522d : 0xfff3b0, 8, 0.8);
   burst(e.x, e.y + e.h * 0.5, 0, 10, 0x0d6b3d, 6, 0.6);
-  audio.play(e.type === 'football' ? 'crate' : 'quack');
+  audio.play(e.type === 'football' ? 'crate' : e.type === 'bot' ? 'crate' : e.type === 'quacker' || e.type === 'flapper' ? 'quack' : 'oof');
   S.root.remove(e.rig.root);
+  if (e.bubble) { S.root.remove(e.bubble); e.bubble = null; }
   S.hitstop = 0.06;
   S.shake = Math.max(S.shake, 0.25);
-  // RAY GUN RULE: any KO reloads the ray gun
+  reloadGun();
+}
+
+// RAY GUN RULE: any KO reloads the ray gun
+function reloadGun() {
   if (S.ammo < GUN_MAX) {
     S.ammo = GUN_MAX;
     audio.play('reload');
@@ -593,12 +650,12 @@ function killEnemy(e) {
 function damageBoss(dmg, { kx = 0, stun = 0, color = 0xffffff } = {}) {
   const b = S.boss;
   if (!b || b.hp <= 0 || b.invuln > 0) return;
-  const mult = b.state === 'stunned' ? 2 : 1;
+  const mult = b.state === 'stunned' || b.state === 'down' ? 2 : 1;
   b.hp -= dmg * mult;
   b.flash = 0.15;
   b.invuln = 0.08;
   if (kx && b.state !== 'charge') b.vx = kx * 0.5;
-  if (stun && b.state !== 'charge' && b.state !== 'pound') { b.state = 'stunned'; b.t = 0; b.stunDur = stun; }
+  if (stun && !['charge', 'pound', 'down', 'slam', 'slamWind', 'intro', 'defeat', 'roar', 'sweep'].includes(b.state)) { b.state = 'stunned'; b.t = 0; b.stunDur = stun; }
   burst(b.x, b.y + 2, 0.5, 14, color, 7, 0.5);
   audio.play('hit');
   S.score += 20 * dmg * mult;
@@ -611,7 +668,7 @@ function checkBoss() {
   if (!b || b.state === 'defeat') return;
   if (b.phase === 1 && b.hp <= b.maxHp / 2) {
     b.phase = 2; b.state = 'roar'; b.t = 0;
-    toast('🦆 MALLARD MACK IS <b>FURIOUS</b>!', 2.2, 'warn');
+    toast('🧠 THE SINGULARITY IS <b>SELF-IMPROVING</b>! (glass shattered)', 2.4, 'warn');
     audio.play('honk');
   }
   if (b.hp <= 0) {
@@ -619,7 +676,8 @@ function checkBoss() {
     S.score += 5000;
     audio.play('boom'); audio.play('quack');
     S.hitstop = 0.25; S.shake = 1.2;
-    toast('🏆 MALLARD MACK IS DOWN! Grab the Spirit Trophy!', 3.5, 'win');
+    toast('🔌 THE SINGULARITY HAS BEEN UNPLUGGED! Grab the Spirit Trophy!', 3.5, 'win');
+    sweepBeam.visible = false;
     for (const e of S.enemies) if (e.alive) killEnemy(e);
     S.eggs.forEach((g) => S.root.remove(g.mesh)); S.eggs = [];
   }
@@ -641,7 +699,8 @@ function breakCrate(s) {
 function reflectEgg(g) {
   g.owner = 'player';
   g.vx = P.facing * 20; g.vy = 3;
-  g.mesh.material = eggMatHot;
+  if (g.mesh.isSprite) g.mesh.material.color.setHex(0xc9a0ff);
+  else g.mesh.material = eggMatHot;
   g.life = 2;
   audio.play('force');
   burst(g.x, g.y, 0, 10, 0xb48cff, 6, 0.4);
@@ -687,6 +746,8 @@ function doUse(held) {
   if (id === 'laser') return; // handled as hold in update
   if (!held) return;
   if (id === 'gun') {
+    fireGun();
+  } else if (id === '__never') {
     if (S.cd.gun > 0) return;
     S.cd.gun = 0.18;
     if (S.ammo <= 0) { audio.play('empty'); toast('Ray Gun EMPTY — KO an enemy to reload!', 1.4, 'warn'); return; }
@@ -747,6 +808,30 @@ function doUse(held) {
   }
 }
 
+function fireGun() {
+  const f = P.facing;
+  if (S.cd.gun > 0) return;
+  S.cd.gun = 0.18;
+  if (S.ammo <= 0) { audio.play('empty'); toast('Ray Gun EMPTY — KO an enemy to reload!', 1.4, 'warn'); return; }
+  S.ammo--;
+  P.action = 'shoot'; P.actionT = 0.25;
+  const m = new THREE.Mesh(boltGeo, boltMat);
+  const x = P.x + f * 1.0, y = P.y + 1.28;
+  m.position.set(x, y, 0.15);
+  S.root.add(m);
+  S.projectiles.push({ kind: 'bolt', x, y, vx: f * 30, vy: 0, life: 1.1, mesh: m, dmg: 2, r: 0.35 });
+  burst(x, y, 0.15, 6, 0x6cff9f, 3, 0.2, 0);
+  audio.play('ray');
+  flashSlot(0);
+}
+
+function explodeFx(x, y) {
+  audio.play('boom');
+  S.shake = Math.max(S.shake, 0.6);
+  burst(x, y, 0, 40, 0xff7a1a, 9, 0.7, -4);
+  burst(x, y, 0, 16, 0x444444, 3, 1.0, 2);
+}
+
 function updateLaser(dt) {
   const isLaser = SLOTS[S.slot].id === 'laser';
   const want = isLaser && keys.has('use') && !S.overheated && S.mode === 'play';
@@ -788,7 +873,7 @@ function updateLaser(dt) {
   const b = S.boss;
   if (b && b.hp > 0 && b.state !== 'intro' && b.x + b.hw > x0 && b.x - b.hw < x1 && eyeY > b.y && eyeY < b.y + b.h) {
     const before = b.hp;
-    b.hp -= 4.5 * dt * (b.state === 'stunned' ? 2 : 1); b.flash = 0.05;
+    b.hp -= 4.5 * dt * (b.state === 'stunned' || b.state === 'down' ? 2 : 1); b.flash = 0.05;
     S.score += 1;
     if (Math.random() < 0.4) burst(b.x - f * b.hw, eyeY, 0.4, 1, 0xff4466, 3, 0.3);
     void before;
@@ -811,7 +896,7 @@ function hurtPlayer(dmg, fromX, reason = 'hit') {
   S.shake = Math.max(S.shake, 0.45);
   burst(P.x, P.y + 1.2, 0.3, 12, 0xff3355, 6, 0.5);
   $('damage').classList.remove('on'); void $('damage').offsetWidth; $('damage').classList.add('on');
-  if (P.hp <= 0) loseLife(reason === 'boss' ? 'Mallard Mack knocked you out!' : 'Knocked out by the Ducks!');
+  if (P.hp <= 0) loseLife({ boss: 'Deleted by THE SINGULARITY!', car: 'Smooshed by a Tennessee driver!', drop: 'Bonked by falling conference gear!' }[reason] || S.level.koMsg || 'Knocked out!');
 }
 
 function loseLife(msg) {
@@ -833,7 +918,10 @@ function respawn() {
   if (S.flood) { S.flood.y = Math.min(S.flood.y, S.respawn.y - 6); S.flood.grace = 2.5; }
   S.eggs.forEach((g) => S.root.remove(g.mesh)); S.eggs = [];
   S.waves.forEach((w) => S.root.remove(w.mesh)); S.waves = [];
-  if (S.boss && S.boss.hp > 0) { S.boss.x = 10; S.boss.vx = 0; S.boss.state = 'idle'; S.boss.t = 0; }
+  if (S.boss && S.boss.hp > 0) { S.boss.vx = 0; S.boss.y = S.boss.homeY; S.boss.state = 'idle'; S.boss.t = 0; sweepBeam.visible = false; }
+  for (const c of S.cars) if (Math.abs(c.x - S.respawn.x) < 12) removeCar(c);
+  S.cars = S.cars.filter((c) => !c.dead); S.carT = 2;
+  S.drops.forEach((d) => { S.root.remove(d.mesh); S.root.remove(d.ring); }); S.drops = []; S.dropT = 2;
   S.mode = 'play';
 }
 
@@ -842,7 +930,7 @@ function gameOver() {
   audio.stopMusic();
   showOverlay('gameover', `
     <h1 class="bad">GAME OVER</h1>
-    <p>The Ducks win this round… but rivalries are forever.</p>
+    <p>Stripes got knocked down… but a Scot never quits. Try again!</p>
     <p class="stats">Reached <b>Level ${S.level.id}: ${S.level.name}</b> · Score <b>${S.score}</b></p>
     <div class="btns"><button data-act="retry" class="primary">Retry Level ${S.level.id} (Enter)</button><button data-act="menu">Main Menu</button></div>`);
 }
@@ -870,7 +958,7 @@ function victory() {
   showOverlay('victory', `
     <div class="tag">SPIRIT TROPHY RECOVERED</div>
     <h1 class="gold">TIGERS WIN!</h1>
-    <p>Stripes dunked on Mallard Mack and brought the Spirit Trophy home.</p>
+    <p>Stripes unplugged THE SINGULARITY and brought the Spirit Trophy home to Maryville College.</p>
     <p class="stats">Final score <b>${S.score}</b> · Spirit tokens <b>${S.coinCount}</b> · Lives left <b>${S.lives}</b></p>
     <div class="btns"><button data-act="again" class="primary">Play Again (Enter)</button><button data-act="menu">Main Menu</button></div>`);
   $('hud').classList.add('dim');
@@ -906,8 +994,11 @@ function updatePlayer(dt) {
   P.invuln -= dt; P.actionT -= dt; P.comboT -= dt; P.landT -= dt;
   if (P.actionT <= 0 && P.action !== 'trophy') P.action = null;
 
+  // elevator-shaft exit (Level 3)
+  const SH = S.level.shaft;
+  if (SH && P.x > SH.x0 && P.x < SH.x1 && P.y < SH.y && S.mode === 'play') { audio.play('splash'); completeLevel(); return; }
   // fall / flood
-  if (P.y < S.level.killY) loseLife('You fell off campus!');
+  if (P.y < S.level.killY) loseLife(S.level.id === 2 ? 'Fell off the highway!' : S.level.id === 3 ? 'Fell through the rotten hotel floor!' : 'You fell off campus!');
   if (S.flood && P.y + 0.7 < S.flood.y) { audio.play('splash'); loseLife('Swept away by the flood!'); }
 
   // stomp + contact with enemies
@@ -924,7 +1015,7 @@ function updatePlayer(dt) {
   }
   // boss contact
   const b = S.boss;
-  if (b && b.hp > 0 && b.state !== 'intro' && b.state !== 'defeat') {
+  if (b && b.hp > 0 && b.state !== 'intro' && b.state !== 'defeat' && b.state !== 'down') {
     if (P.x + PW > b.x - b.hw && P.x - PW < b.x + b.hw && P.y + PH > b.y && P.y < b.y + b.h) {
       if (P.vy < 0 && P.y > b.y + b.h * 0.7) {
         P.vy = 14; P.jumpCut = false; audio.play('stomp');
@@ -956,7 +1047,7 @@ function updatePlayer(dt) {
     }
   }
   // finish
-  if (S.level.finishX && P.x >= S.level.finishX && S.mode === 'play') completeLevel();
+  if (S.level.finishX && !S.level.shaft && P.x >= S.level.finishX && S.mode === 'play') completeLevel();
   // trophy
   if (S.trophy && S.trophy.state === 'ready' && Math.abs(P.x - S.trophy.x) < 1.2 && P.y < S.trophy.y + 1.5) {
     S.trophy.state = 'taken';
@@ -983,7 +1074,7 @@ function collect(pk) {
   S.hitstop = 0.15;
   burst(pk.x, pk.y, 0, 40, { sword: 0x8fb8ff, fireblast: 0xff6a00, laser: 0xff2244, force: 0x9b5cff }[pk.kind], 9, 0.9);
   const how = {
-    sword: 'Press <b>2</b>, then <b>K</b> / right-click to slash. Blocks the Duck\'s eggs!',
+    sword: 'Press <b>2</b>, then <b>K</b> / right-click to slash. Swats away AI logo orbs!',
     fireblast: 'Press <b>3</b>, then <b>K</b> / right-click to hurl an exploding fireball.',
     laser: 'Press <b>4</b>, then <b>HOLD K</b> / right-click — beams from your eyes. Watch the heat!',
     force: 'Press <b>5</b>, then <b>K</b> / right-click — shove everything away and send eggs back!',
@@ -1022,16 +1113,17 @@ function updateEnemies(dt) {
       e.facing = Math.sign(e.vx) || e.facing;
       e.rig.ball.rotation.z -= e.vx * dt * 1.5;
     } else {
-      // quacker
+      // walkers: suits (goomba-style, never chase), ACM members & bots (charge when close)
       if (e.stun <= 0) {
-        const chase = Math.abs(P.x - e.x) < 7 && Math.abs(P.y - e.y) < 1.6 && P.x > e.range[0] - 1 && P.x < e.range[1] + 1;
-        const sp = chase ? 4 : 2.2;
+        const chase = e.type !== 'suit' && Math.abs(P.x - e.x) < 7 && Math.abs(P.y - e.y) < 1.6 && P.x > e.range[0] - 1 && P.x < e.range[1] + 1;
+        const sp = chase ? (e.type === 'acm' ? 4.4 : 3.6) : (e.type === 'suit' ? 1.8 : 2.2);
         let dir = Math.sign(e.vx) || e.facing;
         if (chase) dir = Math.sign(P.x - e.x) || dir;
         if (e.x <= e.range[0]) dir = 1; else if (e.x >= e.range[1]) dir = -1;
         if (e.onGround && groundAt(e.x + dir * 0.7, e.y + 0.1, -999) < e.y - 0.4) dir = -dir; // ledge
         e.vx = dir * sp;
-        if (chase && Math.random() < dt * 0.6) audio.play('quack');
+        if (chase && Math.random() < dt * 0.5) audio.play(e.type === 'bot' ? 'warn' : 'grumble');
+        if (chase && e.type === 'acm' && Math.random() < dt * 0.25) shout(e, ['"Actually…"', '"More of a comment…"', '"Did you cite MY paper?"', '"Point of order!"', '"Per Section 4.2…"'][Math.floor(Math.random() * 5)]);
       } else e.vx *= Math.pow(0.05, dt);
       e.vy += G * dt;
       moveBody(e, dt, e.hw, e.h);
@@ -1047,10 +1139,18 @@ function updateEnemies(dt) {
       r.root.rotation.y += (targetRot - r.root.rotation.y) * Math.min(1, dt * 10);
       const w = e.t * (e.type === 'flapper' ? 22 : 11);
       if (e.type === 'flapper') { r.wings[0].rotation.z = Math.sin(w) * 0.9 - 0.3; r.wings[1].rotation.z = -Math.sin(w) * 0.9 + 0.3; r.body.rotation.x = 0.3; }
-      else { r.body.rotation.z = Math.sin(w) * 0.13; r.legs[0].rotation.x = Math.sin(w) * 0.6; r.legs[1].rotation.x = -Math.sin(w) * 0.6; r.wings[0].rotation.z = -0.2 + Math.sin(w) * 0.2; r.wings[1].rotation.z = 0.2 - Math.sin(w) * 0.2; }
+      else if (r.wings) { r.body.rotation.z = Math.sin(w) * 0.13; r.legs[0].rotation.x = Math.sin(w) * 0.6; r.legs[1].rotation.x = -Math.sin(w) * 0.6; r.wings[0].rotation.z = -0.2 + Math.sin(w) * 0.2; r.wings[1].rotation.z = 0.2 - Math.sin(w) * 0.2; }
+      else {
+        const sw = Math.abs(e.vx) > 3 ? 0.9 : 0.55;
+        r.legs[0].rotation.x = Math.sin(w) * sw; r.legs[1].rotation.x = -Math.sin(w) * sw;
+        r.arms[0].rotation.x = -Math.sin(w) * sw; r.arms[1].rotation.x = Math.sin(w) * sw;
+        if (e.type === 'acm' && Math.abs(e.vx) > 3) { r.arms[0].rotation.x = -2.6 + Math.sin(w * 2) * 0.4; } // finger-wagging rant
+        r.body.rotation.z = Math.sin(w) * 0.04;
+      }
       if (e.stun > 0) r.body.rotation.x = -0.4;
       else if (e.type !== 'flapper') r.body.rotation.x = 0;
     }
+    if (e.bubble) e.bubble.position.set(e.x, e.y + e.h + 0.8, 0.5);
     r.root.scale.y = (r.root.userData.sy ||= r.root.scale.y) * (e.flash > 0 ? 1.15 : 1);
     r.root.visible = !(e.flash > 0 && Math.floor(e.flash * 40) % 2);
   }
@@ -1085,7 +1185,13 @@ function updateProjectiles(dt) {
   // eggs (boss)
   for (const g of S.eggs) {
     g.life -= dt;
-    g.vy += G * 0.55 * dt;
+    if (g.homing) {
+      const tx = g.owner === 'player' && S.boss ? S.boss.x : P.x, ty = g.owner === 'player' && S.boss ? S.boss.y + 1.7 : P.y + 1;
+      const d = Math.hypot(tx - g.x, ty - g.y) || 1;
+      const sp = g.owner === 'player' ? 18 : (S.boss?.phase === 2 ? 5.6 : 4.4);
+      g.vx += ((tx - g.x) / d * sp - g.vx) * Math.min(1, dt * (g.owner === 'player' ? 6 : 1.6));
+      g.vy += ((ty - g.y) / d * sp - g.vy) * Math.min(1, dt * (g.owner === 'player' ? 6 : 1.6));
+    } else g.vy += G * 0.55 * dt;
     g.x += g.vx * dt; g.y += g.vy * dt;
     g.mesh.position.set(g.x, g.y, 0);
     g.mesh.rotation.z += dt * 6;
@@ -1094,7 +1200,7 @@ function updateProjectiles(dt) {
       const b = S.boss;
       if (b && b.hp > 0 && g.x > b.x - b.hw - 0.3 && g.x < b.x + b.hw + 0.3 && g.y > b.y && g.y < b.y + b.h) { damageBoss(4, { stun: 1.2, color: 0xb48cff }); boom = true; }
     } else if (Math.abs(g.x - P.x) < 0.7 && g.y > P.y && g.y < P.y + PH) { hurtPlayer(1, g.x, 'boss'); boom = true; }
-    if (g.y <= groundAt(g.x, g.y + 1) + 0.2 && g.vy < 0) boom = true;
+    if (!g.homing && g.y <= groundAt(g.x, g.y + 1) + 0.2 && g.vy < 0) boom = true;
     if (boom) {
       g.dead = true; S.root.remove(g.mesh);
       burst(g.x, g.y, 0, 18, 0xfff7c2, 6, 0.5); burst(g.x, g.y, 0, 8, 0xffd21f, 4, 0.5);
@@ -1181,142 +1287,190 @@ function explode(x, y, r, dmg) {
 function updateBoss(dt) {
   const b = S.boss;
   if (!b) return;
-  b.t += dt; b.flash -= dt; b.invuln = (b.invuln || 0) - dt;
+  b.t += dt; b.flash -= dt; b.invuln = (b.invuln || 0) - dt; b.hoverT += dt;
   const r = b.rig;
   const A = S.level.arena;
-  const fast = b.phase === 2 ? 1.35 : 1;
-  const toP = Math.sign(P.x - b.x) || 1;
-  let walk = 0;
+  const fast = b.phase === 2 ? 1.4 : 1;
+  const hover = () => {
+    const tx = Math.sin(b.hoverT * 0.45 * fast) * 9;
+    b.x += (tx - b.x) * Math.min(1, dt * 1.2) + b.vx * dt;
+    b.vx *= Math.pow(0.05, dt);
+    b.y += (b.homeY + Math.sin(b.hoverT * 1.7) * 0.45 - b.y) * Math.min(1, dt * 2.5);
+  };
+  const brandUp = () => {
+    b.brand = M.AI_BRANDS[Math.floor(Math.random() * M.AI_BRANDS.length)];
+    r.badge.material.map = M.emblemTexture(b.brand);
+    r.badge.material.needsUpdate = true;
+    r.badge.material.opacity = 1;
+  };
+  const NAMES = { rain: 'Hallucination Rain', orbs: 'Prompt Injection', sweep: 'Context-Window Laser', agents: 'Autonomous Agents', slam: 'Neural Slam' };
 
   switch (b.state) {
     case 'intro':
-      if (b.t < 0.05) { audio.play('honk'); }
-      r.wings[0].rotation.z = -1.2 + Math.sin(b.t * 10) * 0.3; r.wings[1].rotation.z = 1.2 - Math.sin(b.t * 10) * 0.3;
-      r.billBot.rotation.x = Math.abs(Math.sin(b.t * 14)) * 0.5;
-      if (b.t > 2.6) { b.state = 'idle'; b.t = 0; }
+      b.y += (b.homeY - b.y) * Math.min(1, dt * 1.1);
+      r.lid.rotation.x = Math.max(-1.6, -b.t * 0.7);
+      if (b.t < 0.05) { audio.play('honk'); toast('🧠 THE SINGULARITY has the Spirit Trophy!', 2.6, 'warn'); }
+      if (b.t > 3) { b.state = 'idle'; b.t = 0; }
       break;
-    case 'idle': {
-      b.facing = toP;
-      const dist = Math.abs(P.x - b.x);
-      b.vx = dist > 3 ? toP * 3 * fast : -toP * 1.5;
-      walk = 1;
-      if (b.t > (b.phase === 2 ? 1.0 : 1.6)) {
-        const options = ['charge', 'eggs', 'pound'].filter((o) => o !== b.lastAttack);
-        const next = options[Math.floor(Math.random() * options.length)];
-        b.lastAttack = next; b.state = next + 'Wind'; b.t = 0; b.vx = 0;
-        if (next === 'charge') { audio.play('honk'); toast('⚠ CHARGE! Jump over him!', 1.0, 'warn'); }
-        if (next === 'pound') { audio.play('quack'); }
+    case 'idle':
+      hover();
+      r.badge.material.opacity = Math.max(0, r.badge.material.opacity - dt * 2);
+      if (b.t > (b.phase === 2 ? 1.0 : 1.7)) {
         b.attackCount++;
-        if (b.phase === 2 && b.attackCount % 3 === 0 && S.enemies.length < 3) {
-          spawnEnemy('quacker', A[0] + 2, 0, [A[0] + 1, A[1] - 1]);
-          spawnEnemy('flapper', A[1] - 2, 4.5, [A[0] + 2, A[1] - 2]);
-          toast('Mack called in his DUCK CADETS!', 1.4, 'warn');
+        let next;
+        if (b.attackCount % 3 === 0) next = 'slam';
+        else {
+          const opts = ['rain', 'orbs', 'sweep', 'agents'].filter((o) => o !== b.lastAttack && !(o === 'agents' && S.enemies.length >= 3));
+          next = opts[Math.floor(Math.random() * opts.length)];
         }
+        b.lastAttack = next; b.state = next + 'Wind'; b.t = 0;
+        brandUp();
+        toast(`<b>${b.brand.name}</b> presents: ${NAMES[next]}!`, 1.6, 'warn');
+        audio.play('warn');
       }
       break;
-    }
-    case 'chargeWind':
-      b.facing = toP; b.vx = 0;
-      r.body.rotation.x = -0.35; b.flash = (Math.floor(b.t * 12) % 2) ? 0.05 : 0;
-      if (b.t > 0.75 / fast) { b.state = 'charge'; b.t = 0; b.vx = b.facing * 15 * fast; }
+    case 'rainWind':
+      hover();
+      r.brain.rotation.z = Math.sin(b.t * 30) * 0.03;
+      if (b.t > 0.6) { b.state = 'rain'; b.t = 0; b.spawnT = 0; b.spawned = 0; }
       break;
-    case 'charge':
-      r.body.rotation.x = 0.4;
-      walk = 2.5;
-      if (Math.random() < 0.6) burst(b.x - b.facing * 1, 0.2, 0, 1, 0xcccccc, 2, 0.4);
-      if ((b.facing > 0 && b.x > A[1] - b.hw - 0.3) || (b.facing < 0 && b.x < A[0] + b.hw + 0.3)) {
-        b.state = 'stunned'; b.t = 0; b.stunDur = 1.8; b.vx = -b.facing * 4; b.vy = 6;
-        S.shake = 0.8; audio.play('boom');
-        toast('💫 Mack hit the wall — STUNNED! Wail on him!', 1.6);
+    case 'rain':
+      hover();
+      b.spawnT -= dt;
+      if (b.spawnT <= 0 && b.spawned < (b.phase === 2 ? 16 : 11)) {
+        b.spawnT = 0.2 / fast;
+        b.spawned++;
+        const x = THREE.MathUtils.clamp(P.x + (Math.random() - 0.5) * 12, A[0] + 1, A[1] - 1);
+        spawnDrop('emblem', x, { brand: b.brand, fromY: 8 });
       }
+      if (b.spawned >= (b.phase === 2 ? 16 : 11)) { b.state = 'recover'; b.t = 0; }
       break;
-    case 'eggsWind':
-      b.facing = toP; b.vx = 0;
-      r.wings[0].rotation.z = -1.4; r.wings[1].rotation.z = 1.4;
-      if (b.t > 0.55) {
+    case 'orbsWind':
+      hover();
+      r.irisM.emissiveIntensity = 1 + Math.sin(b.t * 30) * 0.8;
+      if (b.t > 0.5) {
         const n = b.phase === 2 ? 5 : 3;
         for (let i = 0; i < n; i++) {
-          const T = 1.0 + i * 0.12;
-          const tx = P.x + (i - (n - 1) / 2) * 2.2 + P.vx * 0.3;
-          const sx = b.x + b.facing * 0.8, sy = b.y + 3.2;
-          const g = { x: sx, y: sy, vx: (tx - sx) / T, vy: (0 - sy - 0.5 * G * 0.55 * T * T) / T, life: 3, owner: 'boss' };
-          g.mesh = new THREE.Mesh(eggGeo, eggMat);
-          g.mesh.castShadow = true;
+          const a = (i / n) * Math.PI * 2;
+          const g = { x: b.x + Math.cos(a) * 2.5, y: b.y + 1.7 + Math.sin(a) * 2, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, life: 6.5, owner: 'boss', homing: true };
+          g.mesh = M.emblemSprite(b.brand, 1.1);
           S.root.add(g.mesh);
           S.eggs.push(g);
         }
-        audio.play('quack');
+        audio.play('ray');
         b.state = 'recover'; b.t = 0;
       }
       break;
-    case 'poundWind':
-      b.facing = toP;
-      r.body.scale.y = 0.8;
-      if (b.t > 0.45) { r.body.scale.y = 1; b.state = 'pound'; b.t = 0; b.vy = 21; b.vx = THREE.MathUtils.clamp((P.x - b.x) / 1.4, -12, 12); b.onGround = false; }
+    case 'sweepWind':
+      hover();
+      r.irisM.emissiveIntensity = 1 + b.t * 4;
+      if (b.t < 0.05) b.sweepDir = P.x > b.x ? -1 : 1;
+      if (b.t > 0.9) { b.state = 'sweep'; b.t = 0; b.sweepX = b.sweepDir < 0 ? A[0] + 1 : A[1] - 1; b.sweepX = b.sweepDir > 0 ? A[0] + 1 : A[1] - 1; }
       break;
-    case 'pound':
-      r.wings[0].rotation.z = -1 + Math.sin(b.t * 25) * 0.5; r.wings[1].rotation.z = 1 - Math.sin(b.t * 25) * 0.5;
-      if (b.onGround && b.t > 0.2) {
-        S.shake = 1; audio.play('boom');
-        burst(b.x, 0.2, 0, 30, 0x9b7a4a, 8, 0.6);
-        for (const d of [-1, 1]) {
-          const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 2.4), new THREE.MeshBasicMaterial({ color: 0xffd21f, transparent: true, opacity: 0.75 }));
-          m.position.set(b.x + d * b.hw, 0.5, 0);
-          S.root.add(m);
-          S.waves.push({ x: b.x + d * b.hw, vx: d * 11 * fast, life: 3, mesh: m });
-        }
-        if (b.phase === 2) setTimeout(() => {
-          if (!S.boss || S.boss.hp <= 0 || S.mode !== 'play') return;
-          for (const d of [-1, 1]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 2.4), new THREE.MeshBasicMaterial({ color: 0xff8a1c, transparent: true, opacity: 0.75 })); m.position.set(S.boss.x, 0.5, 0); S.root.add(m); S.waves.push({ x: S.boss.x, vx: d * 8, life: 3, mesh: m }); }
-        }, 450);
-        b.vx = 0; b.state = 'recover'; b.t = 0;
+    case 'sweep': {
+      b.x += (0 - b.x) * Math.min(1, dt * 0.8);
+      const dur = b.phase === 2 ? 1.8 : 2.5;
+      const k = Math.min(1, b.t / dur);
+      const sx = b.sweepDir > 0 ? THREE.MathUtils.lerp(A[0] + 1, A[1] - 1, k) : THREE.MathUtils.lerp(A[1] - 1, A[0] + 1, k);
+      const ex = b.x, ey = b.y + 1.5;
+      const gy = groundAt(sx, ey - 1);
+      sweepBeam.visible = true;
+      const dx = sx - ex, dy = gy - ey, len = Math.hypot(dx, dy);
+      sweepBeam.position.set((ex + sx) / 2, (ey + gy) / 2, 1.8);
+      sweepBeam.scale.set(1 + Math.random() * 0.5, len, 1 + Math.random() * 0.5);
+      sweepBeam.rotation.z = Math.atan2(-dx, dy);
+      if (Math.random() < 0.7) burst(sx, gy + 0.1, 0, 2, 0xff3355, 5, 0.35);
+      // segment distance test vs tiger's chest
+      const px = P.x, py = P.y + 1;
+      const tt = THREE.MathUtils.clamp(((px - ex) * dx + (py - ey) * dy) / (len * len), 0, 1);
+      if (Math.hypot(px - (ex + dx * tt), py - (ey + dy * tt)) < 0.6) hurtPlayer(1, sx, 'boss');
+      if (k >= 1) { sweepBeam.visible = false; b.state = 'recover'; b.t = 0; }
+      break;
+    }
+    case 'agentsWind':
+      hover();
+      if (b.t > 0.5) {
+        spawnEnemy('bot', A[0] + 2, 0.1, [A[0] + 1, A[1] - 1]);
+        spawnEnemy('bot', A[1] - 2, 0.1, [A[0] + 1, A[1] - 1]);
+        if (b.phase === 2) spawnEnemy('bot', 0, 6, [A[0] + 1, A[1] - 1]);
+        burst(A[0] + 2, 1, 0, 20, 0x3affd0, 6, 0.6); burst(A[1] - 2, 1, 0, 20, 0x3affd0, 6, 0.6);
+        audio.play('power');
+        b.state = 'recover'; b.t = 0;
       }
       break;
+    case 'slamWind':
+      b.y += (b.homeY + 3 - b.y) * Math.min(1, dt * 3);
+      b.x += (P.x - b.x) * Math.min(1, dt * 1.5);
+      b.x = THREE.MathUtils.clamp(b.x, A[0] + b.hw + 1, A[1] - b.hw - 1);
+      r.brain.rotation.z = Math.sin(b.t * 40) * 0.05;
+      if (b.t > 0.8) { b.state = 'slam'; b.t = 0; b.vy = -6; }
+      break;
+    case 'slam':
+      b.vy -= 60 * dt;
+      b.y += b.vy * dt;
+      if (b.y <= 0.15) {
+        b.y = 0.15;
+        S.shake = 1.1; audio.play('boom');
+        burst(b.x, 0.3, 0, 40, 0xe87a9a, 9, 0.7);
+        for (const d of [-1, 1]) {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 2.4), new THREE.MeshBasicMaterial({ color: 0x3affd0, transparent: true, opacity: 0.75 }));
+          m.position.set(b.x + d * b.hw, 0.5, 0);
+          S.root.add(m);
+          S.waves.push({ x: b.x + d * b.hw, vx: d * 10 * fast, life: 3, mesh: m });
+        }
+        b.state = 'down'; b.t = 0;
+        toast('🧠 It crashed! <b>VULNERABLE — DOUBLE DAMAGE!</b>', 1.6, 'win');
+      }
+      break;
+    case 'down':
+      r.lid.rotation.x = -1.6;
+      if (Math.random() < 0.3) burst(b.x + (Math.random() - 0.5) * 4, b.y + 3.6, 0, 1, 0xffff66, 1, 0.4, 0);
+      if (b.t > (b.phase === 2 ? 2.4 : 3.2)) { b.state = 'rise'; b.t = 0; }
+      break;
+    case 'rise':
+      b.y += (b.homeY - b.y) * Math.min(1, dt * 2.5);
+      if (b.t > 1) { b.state = 'idle'; b.t = 0; }
+      break;
     case 'recover':
-      b.vx *= 0.9;
-      if (b.t > (b.phase === 2 ? 0.6 : 1.0)) { b.state = 'idle'; b.t = 0; }
+      hover();
+      if (b.t > (b.phase === 2 ? 0.5 : 0.9)) { b.state = 'idle'; b.t = 0; }
       break;
     case 'stunned':
-      b.vx *= Math.pow(0.02, dt);
-      r.body.rotation.z = Math.sin(b.t * 6) * 0.25;
-      r.head.rotation.y = Math.sin(b.t * 9) * 0.5;
-      if (Math.random() < 0.3) burst(b.x + Math.cos(b.t * 8) * 0.8, b.y + 4.0, 0, 1, 0xffff66, 0.5, 0.3, 0);
-      if (b.t > (b.stunDur || 1.5)) { b.state = 'idle'; b.t = 0; r.body.rotation.z = 0; r.head.rotation.y = 0; }
+      b.x += b.vx * dt; b.vx *= Math.pow(0.05, dt);
+      b.x = THREE.MathUtils.clamp(b.x, A[0] + b.hw, A[1] - b.hw);
+      r.brain.rotation.z = Math.sin(b.t * 9) * 0.15;
+      if (Math.random() < 0.3) burst(b.x + Math.cos(b.t * 8) * 2, b.y + 4.2, 0, 1, 0xffff66, 0.5, 0.3, 0);
+      if (b.t > (b.stunDur || 1.4)) { b.state = 'idle'; b.t = 0; r.brain.rotation.z = 0; }
       break;
     case 'roar':
-      b.vx = 0;
-      r.billBot.rotation.x = 0.5;
-      r.wings[0].rotation.z = -1.5; r.wings[1].rotation.z = 1.5;
-      S.shake = Math.max(S.shake, 0.2);
-      if (Math.random() < 0.5) burst(b.x, b.y + 3, 0, 2, 0xff3333, 5, 0.4, 0);
-      if (b.t > 1.6) { b.state = 'idle'; b.t = 0; r.billBot.rotation.x = 0; }
+      r.brain.rotation.z = Math.sin(b.t * 50) * 0.06;
+      S.shake = Math.max(S.shake, 0.25);
+      if (b.t < 0.05) { r.glass.visible = false; burst(b.x, b.y + 1.7, 1, 70, 0x9ff3ff, 10, 0.9); audio.play('boom'); }
+      if (b.t > 1.6) { b.state = 'idle'; b.t = 0; r.brain.rotation.z = 0; }
       break;
     case 'defeat':
-      b.vx = 0;
-      r.root.rotation.z = Math.min(Math.PI / 2, b.t * 2) * -b.facing;
-      if (Math.random() < 0.3) burst(b.x, b.y + 1, 0, 3, [0xf08a1c, 0x1f3fbf, 0xffffff][Math.floor(Math.random() * 3)], 8, 1.2);
+      b.y += (0.2 - b.y) * Math.min(1, dt * 0.8);
+      r.brain.rotation.z = Math.sin(b.t * 20) * 0.1 * Math.max(0, 1 - b.t / 3);
+      r.root.scale.setScalar(Math.max(0.05, 1 - Math.max(0, b.t - 1.2) * 0.5));
+      if (Math.random() < 0.5) burst(b.x + (Math.random() - 0.5) * 4, b.y + 1.7, 0.5, 3, [0xe87a9a, 0x3affd0, 0xffffff][Math.floor(Math.random() * 3)], 9, 0.9);
       if (b.t > 1.5 && S.trophy.state === 'caged') { S.trophy.state = 'falling'; S.root.remove(S.trophy.cage); audio.play('power'); }
+      if (b.t > 3 && r.root.visible) { r.root.visible = false; audio.play('boom'); burst(b.x, 1, 0, 80, 0xe87a9a, 12, 1); }
       break;
   }
-
-  if (b.state !== 'defeat') {
-    b.vy += G * dt;
-    moveBody(b, dt, b.hw, b.h, true);
-    b.x = Math.max(A[0] + b.hw, Math.min(A[1] - b.hw, b.x));
-  }
-  if (b.state !== 'stunned' && b.state !== 'chargeWind' && b.state !== 'charge' && b.state !== 'roar' && b.state !== 'pound') r.body.rotation.x *= 0.85;
+  if (b.state !== 'sweep') sweepBeam.visible = false;
+  b.x = THREE.MathUtils.clamp(b.x, A[0] + b.hw, A[1] - b.hw);
 
   // visuals
-  r.root.position.set(b.x, b.y, 0);
-  const targetRot = b.facing > 0 ? Math.PI / 2 : -Math.PI / 2;
-  if (b.state !== 'defeat') r.root.rotation.y += (targetRot - r.root.rotation.y) * Math.min(1, dt * 8);
-  if (walk) {
-    const w = S.time * 10 * walk;
-    r.legs[0].rotation.x = Math.sin(w) * 0.7; r.legs[1].rotation.x = -Math.sin(w) * 0.7;
-    if (b.state === 'idle') { r.body.rotation.z = Math.sin(w) * 0.1; r.wings[0].rotation.z = -0.3; r.wings[1].rotation.z = 0.3; }
-  }
-  r.torso.material = b.flash > 0 ? M.mat(0xff5555, { emissive: 0xaa0000 }) : M.mat(0xf3f0e6);
-  if (b.phase === 2 && b.state !== 'defeat') r.head.children[0].material = M.mat(0x1d7a3a, { emissive: 0x440000, emissiveIntensity: 0.6 + Math.sin(S.time * 8) * 0.4 });
+  r.root.position.set(b.x, b.y + 1.7, 0);
+  r.iris.position.x = THREE.MathUtils.clamp((P.x - b.x) * 0.05, -0.3, 0.3);
+  r.iris.position.y = THREE.MathUtils.clamp((P.y + 1 - b.y - 1.5) * 0.05, -0.3, 0.3);
+  if (b.state !== 'intro' && b.state !== 'down') r.lid.rotation.x = -1.6 + (Math.sin(b.hoverT * 0.7) > 0.97 ? 1.4 : 0);
+  if (b.state !== 'orbsWind' && b.state !== 'sweepWind') r.irisM.emissiveIntensity = 1;
+  r.lights.forEach((l, i) => { l.material.color.setHex((Math.floor(S.time * 6) + i) % 4 ? (b.phase === 2 ? 0xff3355 : 0x3affd0) : 0xffffff); });
+  r.pink.emissive.setHex(b.flash > 0 ? 0xff2244 : b.phase === 2 ? 0x5a0010 : 0x3a0a18);
+  r.pink.emissiveIntensity = b.phase === 2 ? 1 + Math.sin(S.time * 8) * 0.5 : 1;
+  r.brain.rotation.y = Math.sin(b.hoverT * 0.6) * 0.15;
+  r.badge.position.y = 4.3 + Math.sin(S.time * 3) * 0.1;
 
   // trophy
   const T = S.trophy;
@@ -1328,6 +1482,173 @@ function updateBoss(dt) {
       if (T.mesh.position.distanceTo(new THREE.Vector3(0, 0.05, 0)) < 0.2) { T.state = 'ready'; T.x = 0; T.y = 0; toast('Grab the <b>SPIRIT TROPHY</b>!', 3, 'win'); }
     }
   }
+}
+
+// ---------------------------------------------------------------- cars (Level 2)
+function roadAt(x, fromY) {
+  let best = -999;
+  for (const s of S.solids) if (!s.car && !s.crate && x >= s.x0 && x <= s.x1 && s.top <= fromY + 0.01 && s.top > best) best = s.top;
+  return best;
+}
+function spawnCar(kind, x, vx) {
+  const spec = M.CAR_SPECS[kind];
+  const model = M.buildCar(kind, [0x2a6fd1, 0xe8e8e8, 0x3a3a3a, 0xf2c12e, 0x2f8a4a, 0x7a3fbf][Math.floor(Math.random() * 6)]);
+  const y = Math.max(0, roadAt(x, 3));
+  const c = { kind, x, y, vx, base: vx, vy: 0, len: spec.len, h: spec.h, hp: kind === 'truck' ? 10 : 6, model, state: 'cruise', t: Math.random() * 3, onGround: true };
+  c.solid = { x0: x - spec.len / 2, x1: x + spec.len / 2, bottom: y, top: y + spec.h, dx: 0, dy: 0, car: c };
+  model.root.position.set(x, y, 0);
+  S.root.add(model.root);
+  S.solids.push(c.solid);
+  S.cars.push(c);
+  return c;
+}
+function removeCar(c) {
+  c.dead = true;
+  S.root.remove(c.model.root);
+  const i = S.solids.indexOf(c.solid);
+  if (i >= 0) S.solids.splice(i, 1);
+}
+function damageCar(c, dmg, kx = 0) {
+  c.hp -= dmg;
+  if (kx) c.vx += kx;
+  burst(c.x, c.y + 1, 0.5, 8, 0xffaa33, 5, 0.4);
+  audio.play('crate');
+  if (c.hp <= 0) {
+    removeCar(c);
+    explodeFx(c.x, c.y + 0.8);
+    S.score += 300;
+    toast('🚗💥 Wrecked a reckless driver!', 1.2);
+    reloadGun();
+  }
+}
+function updateCars(dt) {
+  const C = S.level.cars;
+  if (C && S.mode === 'play') {
+    S.carT -= dt;
+    if (S.carT <= 0) {
+      S.carT = C.every * (0.6 + Math.random() * 0.8);
+      const x = P.x + 30 + Math.random() * 8;
+      if (x < S.level.finishX - 6 && S.cars.length < C.max && roadAt(x, 3) > -1) {
+        const r = Math.random();
+        const kind = r < 0.5 ? 'sedan' : r < 0.72 ? 'truck' : 'erratic';
+        spawnCar(kind, x, -(kind === 'truck' ? 4.5 : 7) * (0.85 + Math.random() * 0.35));
+      }
+    }
+  }
+  for (const c of S.cars) {
+    if (c.dead) continue;
+    c.t += dt;
+    if (c.kind === 'erratic') {
+      const ahead = c.x - P.x;
+      if (c.state === 'cruise') {
+        c.vx = c.base * (1 + Math.sin(c.t * 2.7) * 0.6); // can't decide on a speed
+        if (ahead > 2 && ahead < 11 && c.onGround && Math.random() < dt * 1.6) { c.state = 'rev'; c.t = 0; audio.play('honk'); }
+      } else if (c.state === 'rev') {
+        c.vx *= Math.pow(0.1, dt);
+        c.model.lightM.emissiveIntensity = Math.floor(c.t * 12) % 2 ? 3 : 0.3;
+        if (c.t > 0.5) {
+          if (Math.random() < 0.55) { c.state = 'hop'; c.vy = 15; c.vx = THREE.MathUtils.clamp((P.x - c.x) / 0.85, -14, 6); c.onGround = false; toast('🚗 SMOOSH ATTEMPT!', 0.8, 'warn'); }
+          else { c.state = 'lunge'; c.t = 0; c.vx = c.base * 2.6; }
+        }
+      } else if (c.state === 'lunge') {
+        if (c.t > 1.4) { c.state = 'cruise'; c.t = 0; }
+      }
+    }
+    c.vy += G * dt;
+    c.x += c.vx * dt;
+    c.y += c.vy * dt;
+    const gy = roadAt(c.x, c.y + 0.6);
+    if (c.y <= gy && gy > -998 && c.y > gy - 1.5) {
+      c.y = gy; c.vy = 0;
+      if (!c.onGround) { c.onGround = true; S.shake = Math.max(S.shake, 0.3); audio.play('land'); burst(c.x, c.y + 0.1, 0, 10, 0x999999, 4, 0.4); if (c.state === 'hop') { c.state = 'cruise'; c.t = 0; } }
+    } else c.onGround = false;
+    c.model.lightM.emissiveIntensity = c.state === 'rev' ? c.model.lightM.emissiveIntensity : 0.8;
+    const nx0 = c.x - c.len / 2;
+    c.solid.dx = nx0 - c.solid.x0; c.solid.dy = c.y - c.solid.bottom;
+    c.solid.x0 = nx0; c.solid.x1 = c.x + c.len / 2; c.solid.bottom = c.y; c.solid.top = c.y + c.h;
+    c.model.root.position.set(c.x, c.y, 0);
+    c.model.root.rotation.z = c.state === 'hop' ? -0.25 : c.state === 'lunge' ? -0.05 : 0;
+    c.model.wheels.forEach((w) => { w.rotation.y += c.vx * dt * 2.8; });
+    // cars flatten anything in their way
+    for (const e of S.enemies) if (e.alive && Math.abs(e.x - c.x) < c.len / 2 + e.hw && e.y < c.y + c.h && e.y + e.h > c.y && Math.abs(c.vx) > 2) killEnemy(e);
+    // hit the tiger (side impact, or smooshed from above)
+    if (S.mode === 'play' && P.ground !== c.solid) {
+      const ov = P.x + PW > c.solid.x0 + 0.1 && P.x - PW < c.solid.x1 - 0.1 && P.y + PH > c.y + 0.1 && P.y < c.solid.top - 0.25;
+      if (ov) {
+        if (!c.onGround && c.vy < 0 && P.y < c.y) { hurtPlayer(2, c.x, 'car'); if (P.hp > 0) toast('SMOOSHED by a Tennessee driver!', 1.2, 'warn'); }
+        else if (Math.abs(c.vx) > 1) hurtPlayer(1, c.x, 'car');
+      }
+    }
+    if (c.x < P.x - 45 || c.y < S.level.killY) removeCar(c);
+  }
+  S.cars = S.cars.filter((c) => !c.dead);
+  for (const a of S.ambient) {
+    a.car.root.position.x += a.vx * dt;
+    if (a.car.root.position.x < camera.position.x - 70) a.car.root.position.x += 140;
+    if (a.car.root.position.x > camera.position.x + 70) a.car.root.position.x -= 140;
+    a.car.wheels.forEach((w) => { w.rotation.y += a.vx * dt * 2.8; });
+  }
+}
+
+// ---------------------------------------------------------------- falling projectors / chairs / logos
+function spawnDrop(kind, x, { brand = null, fromY = null } = {}) {
+  const gy = groundAt(x, (fromY ?? P.y) + 3);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 1.15, 26), new THREE.MeshBasicMaterial({ color: kind === 'emblem' ? 0x3affd0 : 0xff4a3a, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(x, gy + 0.06, 0);
+  S.root.add(ring);
+  let mesh;
+  if (kind === 'projector') mesh = M.buildProjector();
+  else if (kind === 'chair') mesh = M.buildChair();
+  else { mesh = new THREE.Mesh(new THREE.CircleGeometry(0.75, 24), new THREE.MeshBasicMaterial({ map: M.emblemTexture(brand), side: THREE.DoubleSide })); }
+  const y = gy + 15;
+  mesh.position.set(x, y, 0);
+  S.root.add(mesh);
+  S.drops.push({ kind, x, y, vy: 0, gy, mesh, ring, spin: (Math.random() - 0.5) * 8 });
+}
+function updateDrops(dt) {
+  const D = S.level.drops;
+  if (D && S.mode === 'play') {
+    S.dropT -= dt;
+    if (S.dropT <= 0) {
+      S.dropT = D.every * (0.6 + Math.random() * 0.8);
+      const x = P.x + P.vx * 0.7 + (Math.random() - 0.35) * 6;
+      spawnDrop(D.kinds[Math.floor(Math.random() * D.kinds.length)], x);
+      if (Math.random() < 0.3) audio.play('warn');
+    }
+  }
+  for (const d of S.drops) {
+    d.vy += G * dt;
+    d.y += d.vy * dt;
+    d.mesh.position.y = d.y;
+    d.mesh.rotation.z += d.spin * dt;
+    d.mesh.rotation.x += d.spin * 0.5 * dt;
+    const k = 1 - Math.min(1, (d.y - d.gy) / 15);
+    d.ring.scale.setScalar(1.4 - k * 0.5);
+    d.ring.material.opacity = 0.35 + k * 0.6;
+    if (d.y <= d.gy + 0.2) {
+      d.dead = true;
+      S.root.remove(d.mesh); S.root.remove(d.ring);
+      burst(d.x, d.gy + 0.4, 0, 16, d.kind === 'emblem' ? 0x3affd0 : d.kind === 'chair' ? 0xd4af37 : 0x9aa0aa, 6, 0.5);
+      audio.play('crate');
+      S.shake = Math.max(S.shake, 0.2);
+      if (Math.abs(P.x - d.x) < 1.15 && P.y < d.gy + 2.2 && P.y > d.gy - 0.6) hurtPlayer(d.kind === 'projector' ? 2 : 1, d.x, d.kind === 'emblem' ? 'boss' : 'drop');
+      for (const e of S.enemies) if (e.alive && Math.abs(e.x - d.x) < 1.2 && Math.abs(e.y - d.gy) < 1) damageEnemy(e, 5);
+    }
+  }
+  S.drops = S.drops.filter((d) => !d.dead);
+}
+
+// speech bubbles for angry ACM members
+function shout(e, text) {
+  if (e.bubble) return;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: M.textTexture(text, { bg: 'rgba(255,255,255,0.92)', fg: '#111', w: 512, h: 96, font: 'bold 40px sans-serif', border: '#1f6fd1' }), transparent: true, depthTest: false }));
+  s.scale.set(2.6, 0.5, 1);
+  s.position.set(e.x, e.y + e.h + 0.8, 0.5);
+  s.renderOrder = 11;
+  S.root.add(s);
+  e.bubble = s;
+  setTimeout(() => { S.root?.remove(s); e.bubble = null; }, 1600);
 }
 
 // ---------------------------------------------------------------- tiger animation
@@ -1392,9 +1713,9 @@ function animateTiger(dt) {
   r.root.visible = S.mode === 'dead' ? false : !(P.invuln > 0 && Math.floor(P.invuln * 14) % 2 && S.mode === 'play');
 
   // VISIBLE LOADOUT on the model
-  r.held.gun.visible = sel === 'gun';
-  r.hipGun.visible = sel !== 'gun';
-  r.held.sword.visible = sel === 'sword' && S.owned.has('sword');
+  r.held.gun.visible = sel === 'gun' || P.action === 'shoot';
+  r.hipGun.visible = !r.held.gun.visible;
+  r.held.sword.visible = sel === 'sword' && S.owned.has('sword') && P.action !== 'shoot';
   r.backSword.visible = sel !== 'sword' && S.owned.has('sword');
   const fire = sel === 'fireblast';
   r.fireL.visible = r.fireR.visible = fire;
@@ -1537,6 +1858,7 @@ function handlePlayInput() {
     selectSlot(i);
   }
   if (pressed.has('jump')) P.jumpBuf = 0.13;
+  if (pressed.has('gun')) fireGun();
   if (pressed.has('punch')) doPunch();
   if (pressed.has('use')) doUse(true);
   else if (keys.has('use') && SLOTS[S.slot].id === 'gun') {/* single-shot gun */}
@@ -1552,6 +1874,8 @@ function step(dt) {
   updateSolids(dt);
   if (S.mode === 'play') {
     S.levelTime += dt;
+    updateCars(dt);
+    updateDrops(dt);
     updatePlayer(dt);
     updateEnemies(dt);
     updateBoss(dt);
@@ -1566,7 +1890,7 @@ function step(dt) {
       }
     }
   } else if (S.mode === 'dead') {
-    updateEnemies(dt); updateProjectiles(dt); updateBoss(dt);
+    updateCars(dt); updateDrops(dt); updateEnemies(dt); updateProjectiles(dt); updateBoss(dt);
   } else if (S.mode === 'victory' || S.mode === 'complete') {
     P.vx *= 0.9; P.vy += G * dt; moveBody(P, dt, PW, PH);
     if (S.mode === 'complete') { P.action = 'trophy'; P.actionT = 0.1; }
@@ -1641,18 +1965,18 @@ function titleScene(dt) {
     titleBuilt = true;
     loadLevel(0);
     S.level = LEVELS[0];
-    P.x = 26.5; P.y = 0;
+    P.x = 0; P.y = 14;
   }
   S.time += dt;
   const a = S.time * 0.15;
-  camera.position.set(26 + Math.sin(a) * 9, 3.2, 8 + Math.cos(a) * 3);
-  camera.lookAt(26, 2.2, -2);
+  camera.position.set(Math.sin(a) * 10, 17.5, 10 + Math.cos(a) * 3);
+  camera.lookAt(0, 15.5, -2);
   P.facing = 1; P.action = null;
-  tiger.root.position.set(22, 0, 0);
-  tiger.root.rotation.y = 0.5;
+  tiger.root.position.set(1.2, 14, 0.5);
+  tiger.root.rotation.y = 0.4;
   animateTiger(dt);
-  tiger.root.position.set(22, 0, 0);
-  tiger.root.rotation.y = 0.5;
+  tiger.root.position.set(1.2, 14, 0.5);
+  tiger.root.rotation.y = 0.4;
   updateParticles(dt);
 }
 
@@ -1666,44 +1990,70 @@ function runSelfTest() {
     for (let i = 0; i < LEVELS.length; i++) {
       loadLevel(i);
       S.mode = 'play';
-      for (let n = 0; n < 90; n++) { updateSolids(1 / 60); updatePlayer(1 / 60); }
+      for (let n = 0; n < 150; n++) { updateSolids(1 / 60); updatePlayer(1 / 60); }
       check(`L${i + 1} '${LEVELS[i].name}' spawns on solid ground`, P.onGround && S.mode === 'play');
     }
-    // Level 1 campus details exist
-    check('L1 has Library + Dining Hall + Statue signage', LEVELS[0].decor.toString().includes('buildLibrary') && LEVELS[0].decor.toString().includes('buildDiningHall') && LEVELS[0].decor.toString().includes('buildStatue'));
-    // ray gun rule
-    loadLevel(0); S.mode = 'play'; S.slot = 0; S.ammo = 4;
-    for (let n = 0; n < 4; n++) { S.cd.gun = 0; doUse(true); }
-    check('Ray gun fires exactly 4 shots', S.ammo === 0 && S.projectiles.length === 4);
-    S.cd.gun = 0; doUse(true);
+    const d1 = LEVELS[0].decor.toString();
+    check('L1 has Bell Tower, Covenant Stone, MC sign w/ Scottie', d1.includes('buildBellTower') && d1.includes('buildCovenantStone') && d1.includes('buildMCSign'));
+    check('L1 starts on top of the bell tower', LEVELS[0].start.y >= 14);
+    // E key fires the ray gun regardless of selected slot
+    loadLevel(0); S.mode = 'play'; S.owned.add('sword'); S.slot = 1; S.ammo = 4;
+    for (let n = 0; n < 4; n++) { S.cd.gun = 0; pressed.add('gun'); handlePlayInput(); pressed.clear(); }
+    check('E fires the ray gun (4 shots) even with Sword selected', S.ammo === 0 && S.projectiles.length === 4);
+    S.cd.gun = 0; fireGun();
     check('Ray gun empty → no 5th shot', S.projectiles.length === 4);
-    const e = S.enemies[0]; killEnemy(e);
-    check('KO reloads ray gun to 4', S.ammo === 4);
-    // pickups unlock slots + visible loadout
-    const sw = S.pickups.find((p) => p.kind === 'sword');
-    collect(sw);
+    const e = S.enemies.find((x) => x.type === 'suit');
+    killEnemy(e);
+    check('KO of a suit reloads ray gun to 4', S.ammo === 4);
+    // stomp a suit
+    loadLevel(0); S.mode = 'play';
+    const st = S.enemies[0]; P.x = st.x; P.y = st.y + st.h * 0.8; P.vy = -5; P.invuln = 0; updatePlayer(1 / 60);
+    check('Suits are stompable (goomba-style)', !st.alive && P.vy > 0);
+    // sword pickup
+    S.owned = new Set(['gun']); loadLevel(0); S.mode = 'play';
+    collect(S.pickups.find((p) => p.kind === 'sword'));
     check('Sword pickup unlocks slot 2 and equips it', S.owned.has('sword') && S.slot === 1);
     animateTiger(0.016);
     check('Sword is visibly held by the tiger', tiger.held.sword.visible && !tiger.held.gun.visible);
     selectSlot(3);
     check('Locked slot (Laser Eyes) cannot be selected yet', S.slot === 1);
-    // level complete trigger
-    P.x = LEVELS[0].finishX + 0.1; P.y = 0; updatePlayer(1 / 60);
-    check('Reaching the flag completes the level', S.mode === 'complete');
-    // flood level
+    P.x = LEVELS[0].finishX + 0.1; P.y = 0; P.ground = null; updatePlayer(1 / 60);
+    check('Passing the MC sign / flag completes Level 1', S.mode === 'complete');
+    // Level 2 cars
+    loadLevel(1); S.mode = 'play'; S.lives = 3; P.invuln = 0;
+    const car = spawnCar('erratic', P.x + 6, -7);
+    check('Highway spawns drivable cars (solid)', S.solids.includes(car.solid));
+    car.x = P.x; car.y = P.y + 0.5; car.vy = -10; car.onGround = false; car.state = 'hop';
+    updateCars(1 / 60);
+    check('Erratic car can SMOOSH the tiger', P.hp <= MAX_HP - 2);
+    removeCar(car); S.cars = S.cars.filter((c) => !c.dead);
+    const car2 = spawnCar('sedan', P.x + 20, -7);
+    car2.x = P.x; car2.y = 0; car2.vx = 0; car2.vy = 0; updateCars(0.001);
+    P.x = car2.x; P.y = car2.solid.top + 0.02; P.vy = -1; P.ground = null; P.invuln = 5; updatePlayer(1 / 60);
+    check('Tiger can stand on top of a car', P.onGround && P.ground === car2.solid);
+    // Level 3 hotel
     S.owned = new Set(['gun', 'sword', 'fireblast']);
-    loadLevel(2); S.mode = 'play'; S.lives = 3;
-    S.flood.y = P.y + 5; updatePlayer(1 / 60);
-    check('Gauntlet flood costs a life', S.mode === 'dead' && S.lives === 2);
+    loadLevel(2); S.mode = 'play'; P.invuln = 0; S.lives = 3;
+    spawnDrop('projector', P.x);
+    for (let n = 0; n < 120 && S.drops.length; n++) updateDrops(1 / 60);
+    check('Falling projector hurts the tiger', P.hp <= MAX_HP - 2);
+    const sh = LEVELS[2].shaft;
+    P.x = (sh.x0 + sh.x1) / 2; P.y = sh.y - 0.5; P.vy = -10; P.ground = null; updatePlayer(1 / 60);
+    check('Jumping down the elevator shaft completes Level 3', S.mode === 'complete');
     // boss
     S.owned = new Set(['gun', 'sword', 'fireblast', 'laser', 'force']);
-    loadLevel(3); S.mode = 'play'; S.boss.state = 'idle';
-    selectSlot(4); P.x = S.boss.x - 3; P.facing = 1; doUse(true);
-    check('The Force damages + stuns the Duck boss', S.boss.hp < 40 && S.boss.state === 'stunned');
-    S.boss.hp = 20.5; S.boss.state = 'idle'; S.boss.invuln = 0; damageBoss(1);
+    loadLevel(3); S.mode = 'play'; S.boss.state = 'idle'; S.boss.y = S.boss.homeY; S.boss.x = 6;
+    selectSlot(4); P.x = 3; P.y = 0; P.facing = 1; doUse(true);
+    check('The Force damages + stuns the AI brain', S.boss.hp < 60 && S.boss.state === 'stunned');
+    S.boss.state = 'idle'; S.boss.t = 99; S.boss.attackCount = 2; updateBoss(1 / 60);
+    check('Brain attacks are branded with an AI company emblem', !!S.boss.brand && S.boss.state === 'slamWind');
+    S.boss.state = 'idle'; S.boss.invuln = 0; const hp0 = S.boss.hp; S.boss.state = 'down'; damageBoss(2);
+    check('Crashed brain takes double damage', Math.abs(hp0 - S.boss.hp - 4) < 1e-6);
+    S.boss.hp = 30.5; S.boss.state = 'idle'; S.boss.invuln = 0; damageBoss(1);
     check('Boss enters phase 2 below 50%', S.boss.phase === 2);
     S.boss.state = 'idle'; S.boss.invuln = 0; S.boss.hp = 1; damageBoss(5);
     check('Boss can be defeated', S.boss.state === 'defeat');
+    P.x = -12; P.y = 0;
     for (let n = 0; n < 400; n++) step(1 / 60);
     check('Trophy drops after boss defeat', S.trophy.state === 'ready');
     P.x = 0; P.y = 0; updatePlayer(1 / 60);
@@ -1714,7 +2064,7 @@ function runSelfTest() {
     S.modeT = 0; respawn();
     check('Losing all lives = GAME OVER', S.mode === 'gameover');
   } catch (err) {
-    results.push('FAIL exception: ' + err.message + ' ' + (err.stack || '').split('\n')[1]);
+    results.push('FAIL exception: ' + err.message + ' ' + (err.stack || '').split('\n').slice(0, 3).join(' | '));
   }
   const ok = results.every((r) => r.startsWith('PASS'));
   document.body.dataset.test = `${ok ? 'ALLPASS' : 'FAILED'} ${results.length}`;

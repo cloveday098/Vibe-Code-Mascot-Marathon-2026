@@ -36,7 +36,11 @@
   #flood { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); font-weight: bold; font-size: 18px; text-shadow: 0 2px 0 #000; }
   #flood .danger { color: #ff5a5a; animation: pulse .3s infinite alternate; }
 
-  #hotbar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: auto; }
+  #ehint { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #dfe6ff; text-shadow: 0 1px 0 #000; white-space: nowrap; }
+  #ehint kbd { background: #fff; color: #111; border-radius: 4px; padding: 0 5px; font: bold 11px monospace; }
+  .college { font-family: Georgia, 'Times New Roman', serif; font-size: 44px; font-weight: bold; color: #ff8a2a; letter-spacing: 1px; text-shadow: 0 3px 0 #6a1414; }
+  .team { font-size: 16px; color: #e6e9f5; margin: 2px 0 12px; letter-spacing: 2px; }
+  #hotbar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: auto; }
   .slot { position: relative; width: 84px; height: 84px; background: var(--panel); border: 3px solid #5a6488; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; transition: transform .12s, border-color .12s; }
   .slot .key { position: absolute; top: 3px; left: 6px; font: bold 14px monospace; color: #ffe6a8; }
   .slot .icon { width: 40px; height: 40px; }
@@ -55,7 +59,7 @@
   .pips { position: absolute; top: 4px; right: 5px; display: flex; flex-direction: column; gap: 2px; }
   .pips span { width: 9px; height: 9px; border-radius: 50%; background: #333; border: 1px solid #6cff9f; }
   .pips span.on { background: #6cff9f; box-shadow: 0 0 6px #6cff9f; }
-  #ctx { position: absolute; bottom: 112px; left: 50%; transform: translateX(-50%); font-size: 14px; background: rgba(0,0,0,.45); padding: 4px 12px; border-radius: 10px; white-space: nowrap; }
+  #ctx { position: absolute; bottom: 122px; left: 50%; transform: translateX(-50%); font-size: 14px; background: rgba(0,0,0,.45); padding: 4px 12px; border-radius: 10px; white-space: nowrap; }
   #controls { position: absolute; left: 14px; bottom: 14px; font-size: 12px; line-height: 1.55; background: rgba(0,0,0,.4); padding: 8px 10px; border-radius: 10px; color: #dde; }
   #controls b { color: #ffe6a8; }
   #toast { position: absolute; top: 120px; left: 50%; transform: translate(-50%, -10px); background: var(--panel); border: 2px solid var(--gold); border-radius: 12px; padding: 10px 18px; font-size: 17px; text-align: center; opacity: 0; transition: opacity .2s, transform .2s; max-width: 80vw; }
@@ -121,10 +125,12 @@
   <div id="deathmsg"></div>
   <div id="ctx"></div>
   <div id="hotbar"></div>
+  <div id="ehint">Press <kbd>E</kbd> to fire the Ray Gun</div>
   <div id="controls">
     <b>A/D ←→</b> move · <b>Space/W</b> jump<br>
     <b>J / Left-click</b> BOX (punch combo)<br>
-    <b>1–5</b> / wheel / Q,E select loadout<br>
+    <b>E</b> fire Ray Gun<br>
+    <b>1–5</b> / wheel / Q select loadout<br>
     <b>K / Right-click</b> use selected item<br>
     <b>C</b> camera · <b>P</b> pause · <b>M</b> mute · <b>H</b> help
   </div>
@@ -135,19 +141,23 @@
   • Stomp ducks by landing on them<br>
   • 3rd punch in a combo is an uppercut<br>
   • Ray Gun: 4 shots, any KO reloads it<br>
-  • Sword / Force / punches knock eggs back<br>
-  • Charge Mack into a wall to stun him (x2 dmg)
+  • Press E any time to fire the Ray Gun<br>
+  • Sword / Force / punches knock AI orbs back<br>
+  • When the brain crashes down: x2 damage!
 </div>
 
 <div class="overlay show" id="title"><div class="panel">
+  <div class="college">Maryville College</div>
+  <div class="team">Jessee · Juan · Chance · Grant</div>
   <div class="title-logo">MASCOT MAYHEM</div>
   <div class="title-main">THE RIVALRY RUN</div>
-  <p class="vs"><span class="t">STRIPES the Tiger</span> vs <span class="d">MALLARD MACK the Duck</span></p>
-  <p>The rival Ducks stole the Spirit Trophy. Box, blast and climb across a wildly reimagined campus to win it back.</p>
+  <p class="vs"><span class="t">STRIPES the Tiger</span> vs <span class="d">THE SINGULARITY</span></p>
+  <p>An AI super-brain stole the Spirit Trophy. Leap off the bell tower, dodge Tennessee traffic, survive the ACM conference and unplug it!</p>
   <div class="keys">
     <span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></span><span>Run</span>
     <span><kbd>Space</kbd> / <kbd>W</kbd></span><span>Jump (hold for higher)</span>
     <span><kbd>J</kbd> / Left-click</span><span>Box — punch combo</span>
+    <span><kbd>E</kbd></span><span>Fire the Ray Gun (4 shots, a KO reloads)</span>
     <span><kbd>1</kbd>–<kbd>5</kbd></span><span>Loadout: Ray Gun · Sword · Fireblast · Laser Eyes · The Force</span>
     <span><kbd>K</kbd> / Right-click</span><span>Use selected item</span>
     <span><kbd>C</kbd> <kbd>P</kbd> <kbd>M</kbd></span><span>Camera · Pause · Mute</span>
@@ -156,10 +166,10 @@
   <label class="easy"><input type="checkbox" id="easy"> Easy mode (9 lives, gentler hits)</label>
   <p style="margin-top:10px;font-size:14px;color:#aab">Level select (for judges &amp; testers):</p>
   <div class="levels">
-    <button data-act="level" data-level="0">1 · Campus Dash</button>
-    <button data-act="level" data-level="1">2 · Stormy Stadium</button>
-    <button data-act="level" data-level="2">3 · The Gauntlet</button>
-    <button data-act="level" data-level="3">4 · Rivalry Showdown</button>
+    <button data-act="level" data-level="0">1 · Maryville College</button>
+    <button data-act="level" data-level="1">2 · Highway to Gatlinburg</button>
+    <button data-act="level" data-level="2">3 · ACM Conference</button>
+    <button data-act="level" data-level="3">4 · AI Final Boss</button>
   </div>
 </div></div>
 

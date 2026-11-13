@@ -90,6 +90,8 @@ export class Audio {
       case 'win': [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.2, 'square', 0.09, null, i * 0.13)); break;
       case 'splash': this.noise(0.5, 0.4, 1500); break;
       case 'crate': this.noise(0.15, 0.4, 1200); this.tone(160, 0.1, 'square', 0.1, 80); break;
+      case 'oof': this.tone(260, 0.16, 'sawtooth', 0.12, 120); this.noise(0.08, 0.2, 700); break;
+      case 'grumble': this.tone(140, 0.25, 'sawtooth', 0.06, 110); this.tone(150, 0.2, 'square', 0.03, 100, 0.12); break;
       case 'stomp': this.tone(600, 0.1, 'square', 0.1, 200); this.noise(0.08, 0.2, 800); break;
     }
   }
